@@ -11,6 +11,8 @@ lst = []
 with settings.Settings() as settings:
     def settings_window():  # Defining settings window
         win3 = Tk()
+        win3.title("NOTAM setting")
+        win3.resizable(width=False, height=False)
         label_sett = Label(win3, text="ICAO API key")
         label_sett.grid(row=0, column=0)
         icaoapikey = Entry(win3, width=45)
@@ -26,12 +28,16 @@ with settings.Settings() as settings:
         settings.exit()
 
 
-def window():
+def notam_download_window():
     win2 = Tk()
+    win2.title("NOTAM download")
+    win2.resizable(width=False, height=False)
     aprtcode = Entry(win2, width=6)
-    aprtcode.grid(row=0, column=0)
+    label_download = Label(win2, text="ICAO:")
+    label_download.pack(side=LEFT)
+    aprtcode.pack(side=LEFT)
     searchbutton = Button(win2, text="NOTAM load", width=20, command=lambda: notam_download(aprtcode.get()))
-    searchbutton.grid(row=1, column=0)
+    searchbutton.pack(side=LEFT)
     win.wait_window(win2)
 
 
@@ -164,7 +170,7 @@ def finder():
             if PERMvar.get() == 1:
                 lst.append(notam[i])
                 lst.append(" ")
-        elif C[i][-3:] == "EST":
+        elif C[i][-3:] == "EST" or C[i][-1:] == "E":
             datesC.append(datetime.date(9999, 1, 1))
             if ESTvar.get() == 1:
                 lst.append(notam[i])
@@ -176,11 +182,11 @@ def finder():
                 lst.append(" ")
     for x in lst:
         output.text.insert(END, x + '\n')
-pass
 
 try:
     while True:
         win = Tk()
+        win.title("NOTAM filter")
         menu = Menu(win)
         win.resizable(width=False, height=True)
         ESTvar = BooleanVar()
@@ -212,7 +218,7 @@ try:
         keywords = entrykeywords.get()
         keywordstags = keywords.split(" ")
         button = Button(win, text="NOTAM FILTR", width=20, command=finder)
-        button2 = Button(win, text="NOTAM download", width=20, command=window)
+        button2 = Button(win, text="NOTAM download", width=20, command=notam_download_window)
         output = Rama(win)
 
         # Positioning the widgets
