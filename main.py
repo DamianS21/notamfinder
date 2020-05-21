@@ -1,4 +1,5 @@
 import datetime
+import settings
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import *
@@ -7,25 +8,22 @@ from tkinter import *
 notam = []  # Global list for NOTAMs strings
 today = (datetime.datetime.now().strftime("%y%m%d"))  # Todays date
 lst = []
-
-import settings
-
-
-def settings_window():
-    win3 = Tk()
-    label_sett = Label(win3, text="ICAO API key")
-    label_sett.grid(row=0, column=0)
-    icaoapikey = Entry(win3, width=45)
-    icaoapikey.grid(row=0, column=1)
-    icaoapikey.insert(0, settings.ICAO_API_key)
-    savebutton = Button(win3, text="Save settings", width=20, command=lambda: savesettings(icaoapikey.get()))
-    savebutton.grid(row=1, column=1)
-    win.wait_window(win3)
+with settings.Settings() as settings:
+    def settings_window():  # Defining settings window
+        win3 = Tk()
+        label_sett = Label(win3, text="ICAO API key")
+        label_sett.grid(row=0, column=0)
+        icaoapikey = Entry(win3, width=45)
+        icaoapikey.grid(row=0, column=1)
+        icaoapikey.insert(0, settings.ICAO_API_key)
+        savebutton = Button(win3, text="Save settings", width=20, command=lambda: savesettings(icaoapikey.get()))
+        savebutton.grid(row=1, column=1)
+        win.wait_window(win3)
 
 
-def savesettings(icaoapikey):
-    settings.ICAO_API_key = icaoapikey
-    settings.exit()
+    def savesettings(icaoapikey):
+        settings.ICAO_API_key = icaoapikey
+        settings.exit()
 
 
 def window():
