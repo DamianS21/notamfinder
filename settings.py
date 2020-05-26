@@ -12,7 +12,8 @@ class Settings:
         else:
             self.__dict__ = {
                 # Default settings
-                'ICAO_API_key': ''
+                'ICAO_API_key': '',
+                'DefaultTags': 'ILS RWY DME VOR'
             }
 
     def __enter__(self):

@@ -8,73 +8,12 @@ from tkinter import *
 notam = []  # Global list for NOTAMs strings
 today = (datetime.datetime.now().strftime("%y%m%d"))  # Todays date
 lst = []
+
 with settings.Settings() as settings:
-    def settings_window():  # Defining settings window
-        win3 = Tk()
-        win3.title("NOTAM setting")
-        win3.resizable(width=False, height=False)
-        label_sett = Label(win3, text="ICAO API key")
-        label_sett.grid(row=0, column=0)
-        icaoapikey = Entry(win3, width=45)
-        icaoapikey.grid(row=0, column=1)
-        icaoapikey.insert(0, settings.ICAO_API_key)
-        savebutton = Button(win3, text="Save settings", width=20, command=lambda: savesettings(icaoapikey.get()))
-        savebutton.grid(row=1, column=1)
-        win.wait_window(win3)
+    pass
 
 
-    def savesettings(icaoapikey):
-        settings.ICAO_API_key = icaoapikey
-        settings.exit()
-
-
-def notam_download_window():
-    win2 = Tk()
-    win2.title("NOTAM download")
-    win2.resizable(width=False, height=False)
-    aprtcode = Entry(win2, width=6)
-    label_download = Label(win2, text="ICAO:")
-    label_download.pack(side=LEFT)
-    aprtcode.pack(side=LEFT)
-    searchbutton = Button(win2, text="NOTAM load", width=20, command=lambda: notam_download(aprtcode.get()))
-    searchbutton.pack(side=LEFT)
-    win.wait_window(win2)
-
-
-def check_NOTAM(datefrom, dateto, notamfrom, notamto):
-    if (datefrom <= notamfrom and dateto >= notamto) or (
-            datefrom <= notamfrom <= dateto <= notamto) or (
-            notamfrom <= datefrom <= notamto <= dateto) or (
-            notamfrom <= datefrom <= notamto and dateto <= notamto):
-        return True
-    else:
-        return False
-
-
-def notam_download(aprt_to_download):
-    import requests
-    import json
-    params = {
-        'api_key': settings.ICAO_API_key,
-        'format': 'json',
-        'criticality': '',
-        'locations': aprt_to_download
-    }
-    icao_URL = 'https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com/anbdata/states/notams/notams-realtime-list'
-    response = requests.get(icao_URL, params=params)
-    json_data = json.loads(response.text)
-    if json_data == [] or response.status_code != 200:
-        tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
-        return
-    entry.text.delete('1.0', END)
-    notam.clear()
-    for x in json_data:
-        entry.text.insert(END, x['all'] + '\n\n')
-        notam.append(x['all'])
-    download_flag.set(True)  # Setting download flag to true
-
-
-class Rama(tk.Frame):
+class TextFrame(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
 
@@ -85,14 +24,19 @@ class Rama(tk.Frame):
         self.text.grid(row=0, column=0, sticky="nsew")
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
-
         self.text.bind("<Any-KeyRelease>", self.highlight)
         self.text.bind("<Any-ButtonRelease>", self.highlight)
 
     def highlight(self, event=None):
+        # Read-only if NOTAMs were downloaded
+        if download_flag.get() == False:
+            self.text.config(state=NORMAL)
+        else:
+            self.text.config(state=DISABLED)
+
         self.text.tag_remove("keyword", 1.0, 'end')
         self.text.tag_configure("keyword", background='yellow', relief='raised')
-        keywords = entrykeywords.get()
+        keywords = gui.get_tags()
         if keywords:
             keywordstags = list(filter(None, keywords.split(" ")))  # Deleting empty elements from Keywordtags list
             for x in keywordstags:
@@ -105,25 +49,18 @@ class Rama(tk.Frame):
                         index = lastindex
 
 
-def insert_to_focus_in(_):
-    entrydate2.delete(0, tk.END)
-    entrydate2.config(fg='black')
-
-
-def insert_to_focus_out(_):
-    if (entrydate2.get() == ""):
-        entrydate2.delete(0, tk.END)
-        entrydate2.config(fg='grey')
-        entrydate2.insert(0, "UFN")
-
-
-def handle_enter(txt):
-    print(full_name_entry.get())
-    win.focus()
-
-
 def remove(string):
     return string.replace(" ", "")
+
+
+def check_NOTAM(datefrom, dateto, notamfrom, notamto):
+    if (datefrom <= notamfrom and dateto >= notamto) or (
+            datefrom <= notamfrom <= dateto <= notamto) or (
+            notamfrom <= datefrom <= notamto <= dateto) or (
+            notamfrom <= datefrom <= notamto and dateto <= notamto):
+        return True
+    else:
+        return False
 
 
 def finder():
@@ -137,12 +74,12 @@ def finder():
     C = []
     datesB = []
     datesC = []
-    if (entrydate2.get() == "" or entrydate2.get() == "UFN"):
+    if (gui.get_entrydate2() == "" or gui.get_entrydate2() == "UFN"):
         dateto = datetime.date(2999, 1, 1)
     else:
-        to = entrydate2.get()
+        to = gui.get_entrydate2()
         dateto = datetime.date(int(str(20) + to[0:2]), int(to[2:4]), int(to[4:6]))
-    frm = entrydate1.get()
+    frm = gui.get_entrydate1()
     datefrom = datetime.date(int(str(20) + frm[0:2]), int(frm[2:4]), int(frm[4:6]))
 
     re = entry.text.get("1.0", END)
@@ -171,10 +108,15 @@ def finder():
                 lst.append(notam[i])
                 lst.append(" ")
         elif C[i][-3:] == "EST" or C[i][-1:] == "E":
-            datesC.append(datetime.date(9999, 1, 1))
+            datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
             if ESTvar.get() == 1:
                 lst.append(notam[i])
                 lst.append(" ")
+            else:
+                datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
+                if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
+                    lst.append(notam[i])
+                    lst.append(" ")
         else:
             datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
             if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
@@ -183,58 +125,202 @@ def finder():
     for x in lst:
         output.text.insert(END, x + '\n')
 
-try:
-    while True:
-        win = Tk()
-        win.title("NOTAM filter")
-        menu = Menu(win)
-        win.resizable(width=False, height=True)
+
+class NotamDownloadClass:
+    def __init__(self, master):
+        self.master = master
+        self.frame = tk.Frame(self.master)
+        self.frame.pack()
+
+        self.master.title("Download")
+        self.master.resizable(width=False, height=False)
+        self.master.lift()
+        self.master.focus_force()
+        self.label_download = Label(self.frame, text="ICAO:").pack(side=LEFT)
+        global searchbuttontext
+        searchbuttontext = tk.StringVar()
+        searchbuttontext.set("Download NOTAM / Enter")
+        aprtcode = Entry(self.frame, width=6)
+        aprtcode.pack(side=LEFT)
+        aprtcode.bind('<Return>', (lambda event: self.notam_download(aprtcode.get())))
+        aprtcode.focus()
+
+        self.searchbutton = Button(self.frame, textvariable=searchbuttontext, width=20,
+                                   command=lambda: self.notam_download(aprtcode.get())).pack(side=LEFT)
+        self.frame.mainloop()
+
+    def notam_download(self, aprt_to_download):
+        import requests
+        import json
+        entry.text.insert(END, "Downloading " + aprt_to_download + " NOTAMS...")
+        if remove(settings.ICAO_API_key) == "":
+            tk.messagebox.showwarning("Warning",
+                                      "You are downloading NOTAMS from ICAO API without API KEY\nAdd your API KEY in Settings")
+        params = {
+            'api_key': settings.ICAO_API_key,
+            'format': 'json',
+            'criticality': '',
+            'locations': aprt_to_download
+        }
+        icao_URL = 'https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com/anbdata/states/notams/notams-realtime-list'
+        response = requests.get(icao_URL, params=params)
+        json_data = json.loads(response.text)
+        if json_data == [] or response.status_code != 200:
+            tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
+            searchbuttontext.set("Error. Try again")
+            return
+        entry.text.delete('1.0', END)
+        notam.clear()
+        for x in json_data:
+            entry.text.insert(END, x['all'] + '\n\n')
+            notam.append(x['all'])
+        download_flag.set(True)  # Setting download flag to true
+        searchbuttontext.set("Download Done")
+
+
+class SettingWindowClass:
+    def __init__(self, master):
+        self.master = master
+        self.frame = tk.Frame(self.master)
+        self.frame.pack()
+
+        self.master.title("NOTAM setting")
+        self.master.resizable(width=False, height=False)
+        Label(self.frame, text="ICAO API key").grid(row=0, column=0)
+        Label(self.frame, text="Default Tags").grid(row=1, column=0)
+        self.icaoapikey = Entry(self.frame, width=45)
+        self.icaoapikey.grid(row=0, column=1)
+        self.icaoapikey.insert(0, settings.ICAO_API_key)
+        self.defaulttags = Entry(self.frame, width=45)
+        self.defaulttags.grid(row=1, column=1)
+        self.defaulttags.insert(0, settings.DefaultTags)
+        Button(self.frame, text="Save settings", width=20,
+               command=lambda: self.savesettings(self.icaoapikey.get(), self.defaulttags.get())).grid(row=2, column=1)
+
+    def savesettings(self, icaoapikey, defaulttags):
+        settings.ICAO_API_key = icaoapikey
+        settings.DefaultTags = defaulttags
+        settings.exit()
+
+
+class MainWin(tk.Frame):
+    def __init__(self, parent, controller):
+        self.parent = parent
+        Frame.__init__(self, parent)
+        self.options_toplevel = None
+        self.controller = controller
+        # Defining global Variables
+        global ESTvar
         ESTvar = BooleanVar()
         ESTvar.set(True)
-        listone = Menu(tearoff=0)
-        listone.add_checkbutton(label="EST", onvalue=1, offvalue=0, variable=ESTvar)
+        global PERMvar
         PERMvar = BooleanVar()
         PERMvar.set(True)
-        listone.add_checkbutton(label="PERM", onvalue=1, offvalue=0, variable=PERMvar)
+        global download_flag
         download_flag = BooleanVar()
         download_flag.set(False)
-        listone.add_checkbutton(label="NOTAMs downloaded", onvalue=1, offvalue=0, variable=download_flag)
-        listone.add_command(label="Settings...", command=settings_window)
-        menu.add_cascade(label="Settings", menu=listone)
-        l1 = Label(win, text="From:")
-        l2 = Label(win, text="To:")
-        scroll = Scrollbar(win)
-        entry = Rama(win)
 
-        entrydate1 = Entry(win, width=6)
-        entrydate1.insert(END, today)
-        entrydate2 = Entry(win, width=6, bg='white', fg='grey')
-        entrydate2.bind("<FocusIn>", insert_to_focus_in)
-        entrydate2.bind("<FocusOut>", insert_to_focus_out)
-        entrydate2.bind("<Return>", handle_enter)
-        entrydate2.insert(0, "UFN")
-        entrykeywords = Entry(win, width=35)
-        entrykeywords.insert(END, "ILS RWY DME VOR")
-        keywords = entrykeywords.get()
-        keywordstags = keywords.split(" ")
-        button = Button(win, text="NOTAM FILTR", width=20, command=finder)
-        button2 = Button(win, text="NOTAM download", width=20, command=notam_download_window)
-        output = Rama(win)
+        self.initUI()
+        self.menubar(self.controller)
+        self.boxes()
+        self.entryboxes()
+        self.buttons()
+        self.labels()
 
-        # Positioning the widgets
+    def initUI(self):
+        self.parent.title("NOTAM downloader and NOTAM filter")
+        self.parent.resizable(width=False, height=True)
+        self.pack()
+
+    def menubar(self, controller):
+        menubar = Menu(controller)
+        menu = Menu(menubar, tearoff=0)
+        menu.add_checkbutton(label="Always EST", onvalue=1, offvalue=0, variable=ESTvar)
+        menu.add_checkbutton(label="Always PERM", onvalue=1, offvalue=0, variable=PERMvar)
+        menu.add_checkbutton(label="NOTAMs downloaded from ICAO", onvalue=1, offvalue=0, variable=download_flag)
+        menu.add_command(label="Settings...", command=self.new_window_settings)
+        menubar.add_cascade(label="File", menu=menu)
+        controller.config(menu=menubar)
+
+    def boxes(self):
+        global entry
+        global output
+        entry = TextFrame(self)
         entry.grid(row=1, column=0)
-        l1.grid(row=0, column=0, sticky=E, padx=125)
-        l2.grid(row=0, column=0, sticky=E, padx=50)
-        entrydate1.grid(row=0, column=0, sticky=E, padx=75)
-        entrydate2.grid(row=0, column=0, sticky=E, padx=0)
-        entrykeywords.grid(row=0, column=0, sticky=W, padx=5)
-        button.grid(row=0, column=3, padx=20, sticky=E)
-        button2.grid(row=0, column=3, padx=0, sticky=W)
+        output = TextFrame(self)
         output.grid(row=1, column=3)
 
-        win.config(menu=menu)
+    def entryboxes(self):
+        self.entrydate1 = Entry(self, width=6)
+        self.entrydate1.insert(END, today)
+        self.entrydate2 = Entry(self, width=6, bg='white', fg='grey')
+        self.entrydate2.bind("<FocusIn>", self.insert_to_focus_in)
+        self.entrydate2.bind("<FocusOut>", self.insert_to_focus_out)
+        self.entrydate2.bind("<Return>", (lambda event: self.handle_enter()))
+        self.entrydate2.insert(0, "UFN")
+        self.entrykeywords = Entry(self, width=35)
+        self.entrykeywords.insert(END, settings.DefaultTags)
+        self.entrydate1.grid(row=0, column=0, sticky=E, padx=75)
+        self.entrydate2.grid(row=0, column=0, sticky=E, padx=0)
+        self.entrykeywords.grid(row=0, column=0, sticky=W, padx=5)
 
-        win.mainloop()
-        break
-except KeyboardInterrupt:
-    print('\n')
+    def buttons(self):
+        Button(self, text="NOTAM FILTR", width=20, command=finder).grid(row=0, column=3, padx=20, sticky=E)
+        button2 = Button(self, text="NOTAM download", width=20, command=self.new_window_download).grid(row=0, column=3,
+                                                                                                       padx=0, sticky=W)
+
+    def labels(self):
+        l1 = Label(self, text="From:").grid(row=0, column=0, sticky=E, padx=125)
+        l2 = Label(self, text="To:").grid(row=0, column=0, sticky=E, padx=50)
+
+    def insert_to_focus_in(self, *args):
+        self.entrydate2.delete(0, tk.END)
+        self.entrydate2.config(fg='black')
+
+    def insert_to_focus_out(self, *args):
+        if (self.entrydate2.get() == ""):
+            self.entrydate2.delete(0, tk.END)
+            self.entrydate2.config(fg='grey')
+            self.entrydate2.insert(0, "UFN")
+
+    def handle_enter(self):
+        self.focus()
+
+    def get_entrydate1(self):
+        return self.entrydate1.get()
+
+    def get_entrydate2(self):
+        return self.entrydate2.get()
+
+    def get_tags(self):
+        return self.entrykeywords.get()
+
+    def new_window_settings(self, *args):
+        if self.options_toplevel is None:
+            self.options_toplevel = tk.Toplevel(self.master)
+            self.options_toplevel.protocol('WM_DELETE_WINDOW', self.on_tl_close)
+            self.app = SettingWindowClass(self.options_toplevel)
+
+    def new_window_download(self, *args):
+        if self.options_toplevel is None:
+            self.options_toplevel = tk.Toplevel(self.master)
+            self.options_toplevel.protocol('WM_DELETE_WINDOW', self.on_tl_close)
+            self.app = NotamDownloadClass(self.options_toplevel)
+
+    def on_tl_close(self, *args):
+        self.options_toplevel.destroy()
+        self.options_toplevel = None
+
+
+def main():
+    global gui
+    win = Tk()
+    ESTvar = BooleanVar()
+    ESTvar.set(True)
+    gui = MainWin(win, win)
+    gui.pack()
+    win.mainloop()
+
+
+if __name__ == '__main__':
+    main()
