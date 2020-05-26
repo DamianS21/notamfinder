@@ -180,7 +180,7 @@ class NotamDownloadClass:
         searchbuttontext.set("Download Done")
 
 
-class SettingWindowClass:
+class SettingWindowClass:  # TODO: Zrobić zmianę przycisku na "Saved" po zapisie
     def __init__(self, master):
         self.master = master
         self.frame = tk.Frame(self.master)
@@ -255,6 +255,7 @@ class MainWin(tk.Frame):
     def entryboxes(self):
         self.entrydate1 = Entry(self, width=6)
         self.entrydate1.insert(END, today)
+        self.entrydate1.bind("<FocusOut>", self.from_insert_to_focus_out)
         self.entrydate2 = Entry(self, width=6, bg='white', fg='grey')
         self.entrydate2.bind("<FocusIn>", self.insert_to_focus_in)
         self.entrydate2.bind("<FocusOut>", self.insert_to_focus_out)
@@ -284,6 +285,10 @@ class MainWin(tk.Frame):
             self.entrydate2.delete(0, tk.END)
             self.entrydate2.config(fg='grey')
             self.entrydate2.insert(0, "UFN")
+
+    def from_insert_to_focus_out(self, *args):
+        if (self.entrydate1.get() == ""):
+            self.entrydate1.insert(END, today)
 
     def handle_enter(self):
         self.focus()
