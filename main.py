@@ -26,6 +26,7 @@ class TextFrame(tk.Frame):
         self.grid_columnconfigure(0, weight=1)
         self.text.bind("<Any-KeyRelease>", self.highlight)
         self.text.bind("<Any-ButtonRelease>", self.highlight)
+        self.text.bind("<Enter>", self.highlight)
 
     def highlight(self, event=None):
         # Read-only if NOTAMs were downloaded
@@ -153,6 +154,7 @@ class NotamDownloadClass:
         import requests
         import json
         entry.text.insert(END, "Downloading " + aprt_to_download + " NOTAMS...")
+        entry.text.update()
         if remove(settings.ICAO_API_key) == "":
             tk.messagebox.showwarning("Warning",
                                       "You are downloading NOTAMS from ICAO API without API KEY\nAdd your API KEY in Settings")
