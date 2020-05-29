@@ -115,6 +115,8 @@ class NotamDownloadClass:
             response = requests.get(icao_URL, params=params)
             json_data = json.loads(response.text)
             count += 1
+            entry.text.insert(END, "\nAttempt " + str(count))
+            entry.text.update()
         if (json_data == [] or response.status_code != 200):
             tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
             searchbuttontext.set("Error. Try again")
@@ -129,11 +131,15 @@ class NotamDownloadClass:
         searchbuttontext.set("Download Done")
         entry.readOnly('Disabled')
 
-class SettingWindowClass:  # TODO: Zrobić zmianę przycisku na "Saved" po zapisie
+
+class SettingWindowClass:
     def __init__(self, master):
         self.master = master
         self.frame = tk.Frame(self.master)
         self.frame.pack()
+
+        self.buttontext = tk.StringVar()
+        self.buttontext.set("Save settings")
 
         self.master.title("NOTAM setting")
         self.master.resizable(width=False, height=False)
@@ -145,13 +151,14 @@ class SettingWindowClass:  # TODO: Zrobić zmianę przycisku na "Saved" po zapis
         self.defaulttags = Entry(self.frame, width=45)
         self.defaulttags.grid(row=1, column=1)
         self.defaulttags.insert(0, settings.DefaultTags)
-        Button(self.frame, text="Save settings", width=20,
+        Button(self.frame, textvariable=self.buttontext, width=20,
                command=lambda: self.savesettings(self.icaoapikey.get(), self.defaulttags.get())).grid(row=2, column=1)
 
     def savesettings(self, ICAO_API_key, DefaultTags):
         settings.ICAO_API_key = ICAO_API_key
         settings.DefaultTags = DefaultTags
         settings.exit()
+        self.buttontext.set("Saved.")
 
 
 class MainWin(tk.Frame):
