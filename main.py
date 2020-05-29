@@ -29,12 +29,7 @@ class TextFrame(tk.Frame):
         self.text.bind("<Enter>", self.highlight)
 
     def highlight(self, event=None):
-        # Read-only if NOTAMs were downloaded
-        if download_flag.get() == False:
-            self.text.config(state=NORMAL)
-        else:
-            self.text.config(state=DISABLED)
-
+        self.readOnly()
         self.text.tag_remove("keyword", 1.0, 'end')
         self.text.tag_configure("keyword", background='yellow', relief='raised')
         keywords = gui.get_tags()
@@ -49,6 +44,17 @@ class TextFrame(tk.Frame):
                         self.text.tag_add("keyword", index, lastindex)
                         index = lastindex
 
+    def readOnly(self, event=None):
+        if event is None:
+            # Read-only if NOTAMs were downloaded
+            if download_flag.get() == False:
+                self.text.config(state=NORMAL)
+            else:
+                self.text.config(state=DISABLED)
+        if event is 'Normal':
+            self.text.config(state=NORMAL)
+        elif event is 'Disabled':
+            self.text.config(state=DISABLED)
 
 def remove(string):
     return string.replace(" ", "")
@@ -62,69 +68,6 @@ def check_NOTAM(datefrom, dateto, notamfrom, notamto):
         return True
     else:
         return False
-
-
-def finder():
-    output.text.delete('1.0', END)
-    output.text.update()
-    lst = []
-    x = []
-    y = []
-    z = []
-    B = []
-    C = []
-    datesB = []
-    datesC = []
-    if (gui.get_entrydate2() == "" or gui.get_entrydate2() == "UFN"):
-        dateto = datetime.date(2999, 1, 1)
-    else:
-        to = gui.get_entrydate2()
-        dateto = datetime.date(int(str(20) + to[0:2]), int(to[2:4]), int(to[4:6]))
-    frm = gui.get_entrydate1()
-    datefrom = datetime.date(int(str(20) + frm[0:2]), int(frm[2:4]), int(frm[4:6]))
-
-    re = entry.text.get("1.0", END)
-    if (download_flag.get() == False and remove(re).rstrip(
-            "\n") != ''):  # Check if there are any values(notams) in left textbox and if the download_flag is set to True
-        notam.clear()
-        notam.extend(re.split("\n\n"))
-    elif (remove(re).rstrip("\n") == ''):
-        tk.messagebox.showerror("Error", "Brak NOTAMów")
-
-    for i in range(len(notam)):
-        x.append(notam[i].find("B)"))
-        y.append(notam[i].find("C)"))
-        if notam[i].find("D)") < 0:
-            z.append(notam[i].find("E)"))
-        else:
-            z.append(notam[i].find("D)"))
-        if (int(z[i] - 1) - int(y[i] + 2)) > 14:  # Protection for maximum elements in C) Date
-            z[i] = int(y[i] + 2) + 14
-        B.append(remove(notam[i][int(x[i] + 2):int(y[i] - 1)]))
-        C.append(remove(notam[i][int(y[i] + 2):int(z[i] - 1)]))
-        datesB.append(datetime.date(int(str(20) + B[i][0:2]), int(B[i][2:4]), int(B[i][4:6])))
-        if C[i] == "PERM":
-            datesC.append(datetime.date(9999, 1, 1))
-            if PERMvar.get() == 1:
-                lst.append(notam[i])
-                lst.append(" ")
-        elif C[i][-3:] == "EST" or C[i][-1:] == "E":
-            datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
-            if ESTvar.get() == 1:
-                lst.append(notam[i])
-                lst.append(" ")
-            else:
-                datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
-                if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
-                    lst.append(notam[i])
-                    lst.append(" ")
-        else:
-            datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
-            if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
-                lst.append(notam[i])
-                lst.append(" ")
-    for x in lst:
-        output.text.insert(END, x + '\n')
 
 
 class NotamDownloadClass:
@@ -153,6 +96,7 @@ class NotamDownloadClass:
     def notam_download(self, aprt_to_download):
         import requests
         import json
+        entry.readOnly('Normal')
         entry.text.insert(END, "Downloading " + aprt_to_download + " NOTAMS...")
         entry.text.update()
         if remove(settings.ICAO_API_key) == "":
@@ -165,20 +109,25 @@ class NotamDownloadClass:
             'locations': aprt_to_download
         }
         icao_URL = 'https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com/anbdata/states/notams/notams-realtime-list'
-        response = requests.get(icao_URL, params=params)
-        json_data = json.loads(response.text)
-        if json_data == [] or response.status_code != 200:
+        count = 0
+        json_data = []
+        while (json_data == [] and count < 5):
+            response = requests.get(icao_URL, params=params)
+            json_data = json.loads(response.text)
+            count += 1
+        if (json_data == [] or response.status_code != 200):
             tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
             searchbuttontext.set("Error. Try again")
             return
         entry.text.delete('1.0', END)
+        global notam
         notam.clear()
         for x in json_data:
             entry.text.insert(END, x['all'] + '\n\n')
             notam.append(x['all'])
         download_flag.set(True)  # Setting download flag to true
         searchbuttontext.set("Download Done")
-
+        entry.readOnly('Disabled')
 
 class SettingWindowClass:  # TODO: Zrobić zmianę przycisku na "Saved" po zapisie
     def __init__(self, master):
@@ -199,9 +148,9 @@ class SettingWindowClass:  # TODO: Zrobić zmianę przycisku na "Saved" po zapis
         Button(self.frame, text="Save settings", width=20,
                command=lambda: self.savesettings(self.icaoapikey.get(), self.defaulttags.get())).grid(row=2, column=1)
 
-    def savesettings(self, icaoapikey, defaulttags):
-        settings.ICAO_API_key = icaoapikey
-        settings.DefaultTags = defaulttags
+    def savesettings(self, ICAO_API_key, DefaultTags):
+        settings.ICAO_API_key = ICAO_API_key
+        settings.DefaultTags = DefaultTags
         settings.exit()
 
 
@@ -268,10 +217,75 @@ class MainWin(tk.Frame):
         self.entrykeywords.grid(row=0, column=0, sticky=W, padx=5)
 
     def buttons(self):
-        Button(self, text="NOTAM FILTR", width=20, command=finder).grid(row=0, column=3, padx=20, sticky=E)
+        Button(self, text="NOTAM FILTR", width=20, command=self.finder).grid(row=0, column=3, padx=20, sticky=E)
         button2 = Button(self, text="NOTAM download", width=20, command=self.new_window_download).grid(row=0, column=3,
                                                                                                        padx=0, sticky=W)
 
+    def finder(self):
+        output.readOnly('Normal')
+        output.text.delete('1.0', END)
+        output.text.config
+        output.text.update()
+        lst = []
+        x = []
+        y = []
+        z = []
+        B = []
+        C = []
+        datesB = []
+        datesC = []
+        if (gui.get_entrydate2() == "" or gui.get_entrydate2() == "UFN"):
+            dateto = datetime.date(2999, 1, 1)
+        else:
+            to = gui.get_entrydate2()
+            dateto = datetime.date(int(str(20) + to[0:2]), int(to[2:4]), int(to[4:6]))
+        frm = gui.get_entrydate1()
+        datefrom = datetime.date(int(str(20) + frm[0:2]), int(frm[2:4]), int(frm[4:6]))
+        re = entry.text.get("1.0", END)
+        if (download_flag.get() == False and remove(re).rstrip(
+                "\n") != ''):  # Check if there are any values(notams) in left textbox and if the download_flag is set to True
+            notam.clear()
+            notam.extend(re.split("\n\n"))
+        elif (remove(re).rstrip("\n") == ''):
+            tk.messagebox.showerror("Error", "Brak NOTAMów")
+
+        for i in range(len(notam)):
+            x.append(notam[i].find("B)"))
+            y.append(notam[i].find("C)"))
+            if notam[i].find("D)") < 0:
+                z.append(notam[i].find("E)"))
+            else:
+                z.append(notam[i].find("D)"))
+            if (int(z[i] - 1) - int(y[i] + 2)) > 14:  # Protection for maximum elements in C) Date
+                z[i] = int(y[i] + 2) + 14
+            B.append(remove(notam[i][int(x[i] + 2):int(y[i] - 1)]))
+            C.append(remove(notam[i][int(y[i] + 2):int(z[i] - 1)]))
+            datesB.append(datetime.date(int(str(20) + B[i][0:2]), int(B[i][2:4]), int(B[i][4:6])))
+            if C[i] == "PERM":
+                datesC.append(datetime.date(9999, 1, 1))
+                if PERMvar.get() == 1:
+                    lst.append(notam[i])
+                    lst.append(" ")
+            elif C[i][-3:] == "EST" or C[i][-1:] == "E":
+                datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
+                if ESTvar.get() == 1:
+                    lst.append(notam[i])
+                    lst.append(" ")
+                else:
+                    datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
+                    if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
+                        lst.append(notam[i])
+                        lst.append(" ")
+            else:
+                datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
+                if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
+                    lst.append(notam[i])
+                    lst.append(" ")
+        for x in lst:
+            output.text.insert(END, x + '\n')
+        output.readOnly('Disabled')
+
+    # TODO: Naprawić jeżeli jest pusty insert w Downloadzie
     def labels(self):
         l1 = Label(self, text="From:").grid(row=0, column=0, sticky=E, padx=125)
         l2 = Label(self, text="To:").grid(row=0, column=0, sticky=E, padx=50)
