@@ -26,4 +26,6 @@ Default tags can be changed in File->Settings->Default tags.
 
 # Credits:
 
+Damian Szumski
+
 This software uses [settings.py by xaviergoby](https://gist.github.com/xaviergoby/a23edddc20894ae5ff3c278e7488dfd3)  for saving settings.
