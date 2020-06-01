@@ -5,12 +5,54 @@ from tkinter import messagebox
 from tkinter import *
 
 # Global BOOLVar to check if data was pasted or downloaded
-notam = []  # Global list for NOTAMs strings
+notam = []  # Global list for NOTAMs
 today = (datetime.datetime.now().strftime("%y%m%d"))  # Todays date
 lst = []
 
 with settings.Settings() as settings:
     pass
+
+
+class NotamClass(object):
+    def __init__(self, val: str, startdate: str, enddate: str, PERM: bool = None, EST: bool = None):
+        """
+        This is a class for NOTAM atributes.
+
+        Attributes:
+            val (str): The value of NOTAM.
+            startdate : The date in B) of NOTAM. This method converts it to datetime.date type.
+            enddate : The date in C) of NOTAM. This method converts it to datetime.date type.
+            PERM (bool): The BOOL value of Permament of NOTAM.
+            EST (bool): The BOOL value of Estimated time of NOTAM.
+        Methods:
+            convertShort(date: str): converts 10 elements string with date to datetime.data format
+            convertLong(date: str: converts 24 elements string with date to datetime.data format
+            setPERM(optional val: bool): sets value of NOTAM object PERM attribute to val or True if empty
+            setEST(optional val: bool): sets value of NOTAM object EST attribute to val or True if empty
+        """
+        self.val = val
+        self.PERM = PERM
+        self.EST = EST
+
+        if len(str(startdate)) == 24:
+            self.startdate = self.convertLong(startdate)
+        if len(str(enddate)) == 24:
+            self.enddate = self.convertLong(enddate)
+        if len(str(startdate)) == 10:
+            self.startdate = self.convertShort(startdate)
+            self.enddate = self.convertShort(enddate)
+
+    def convertShort(self, date: str) -> datetime.date:
+        return datetime.date(int(str(20) + str(date[0:2])), int(date[2:4]), int(date[4:6]))
+
+    def convertLong(self, date: str) -> datetime.date:
+        return datetime.date(int(str(20) + date[2:4]), int(date[5:7]), int(date[8:10]))
+
+    def setPERM(self, val: bool = True):
+        self.PERM = val
+
+    def setEST(self, val: bool = True):
+        self.EST = val
 
 
 class TextFrame(tk.Frame):
@@ -56,6 +98,7 @@ class TextFrame(tk.Frame):
         elif event is 'Disabled':
             self.text.config(state=DISABLED)
 
+
 def remove(string):
     return string.replace(" ", "")
 
@@ -81,6 +124,9 @@ class NotamDownloadClass:
         self.master.lift()
         self.master.focus_force()
         self.label_download = Label(self.frame, text="ICAO:").pack(side=LEFT)
+
+        self.master.bind("<Escape>", (lambda event: gui.on_tl_close()))  # Closing window with ESC button
+
         global searchbuttontext
         searchbuttontext = tk.StringVar()
         searchbuttontext.set("Download NOTAM / Enter")
@@ -121,16 +167,16 @@ class NotamDownloadClass:
             tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
             searchbuttontext.set("Error. Try again")
             return
-        entry.text.delete('1.0', END)
+        entry.text.delete('1.0', END)  # NOTAMs downloaded
         global notam
         notam.clear()
         for x in json_data:
             entry.text.insert(END, x['all'] + '\n\n')
-            notam.append(x['all'])
+            notam.append(NotamClass(x['all'], x['startdate'], x['enddate']))
+            # notamtext.append(x['all'])
         download_flag.set(True)  # Setting download flag to true
         searchbuttontext.set("Download Done")
         entry.readOnly('Disabled')
-
 
 class SettingWindowClass:
     def __init__(self, master):
@@ -151,6 +197,8 @@ class SettingWindowClass:
         self.defaulttags = Entry(self.frame, width=45)
         self.defaulttags.grid(row=1, column=1)
         self.defaulttags.insert(0, settings.DefaultTags)
+        self.master.bind("<Escape>", (lambda event: gui.on_tl_close()))  # Closing window with ESC button
+
         Button(self.frame, textvariable=self.buttontext, width=20,
                command=lambda: self.savesettings(self.icaoapikey.get(), self.defaulttags.get())).grid(row=2, column=1)
 
@@ -195,7 +243,8 @@ class MainWin(tk.Frame):
         menu = Menu(menubar, tearoff=0)
         menu.add_checkbutton(label="Always EST", onvalue=1, offvalue=0, variable=ESTvar)
         menu.add_checkbutton(label="Always PERM", onvalue=1, offvalue=0, variable=PERMvar)
-        menu.add_checkbutton(label="NOTAMs downloaded from ICAO", onvalue=1, offvalue=0, variable=download_flag)
+        menu.add_checkbutton(label="NOTAMs downloaded from ICAO", onvalue=1, offvalue=0, variable=download_flag,
+                             command=self.download_change)
         menu.add_command(label="Settings...", command=self.new_window_settings)
         menubar.add_cascade(label="File", menu=menu)
         controller.config(menu=menubar)
@@ -225,22 +274,21 @@ class MainWin(tk.Frame):
 
     def buttons(self):
         Button(self, text="NOTAM FILTR", width=20, command=self.finder).grid(row=0, column=3, padx=20, sticky=E)
-        button2 = Button(self, text="NOTAM download", width=20, command=self.new_window_download).grid(row=0, column=3,
-                                                                                                       padx=0, sticky=W)
+        Button(self, text="NOTAM download", width=20, command=self.new_window_download).grid(row=0, column=3,
+                                                                                             padx=0, sticky=W)
 
     def finder(self):
         output.readOnly('Normal')
         output.text.delete('1.0', END)
         output.text.config
         output.text.update()
-        lst = []
         x = []
         y = []
         z = []
         B = []
         C = []
-        datesB = []
-        datesC = []
+        lst = []
+        notamtext = []
         if (gui.get_entrydate2() == "" or gui.get_entrydate2() == "UFN"):
             dateto = datetime.date(2999, 1, 1)
         else:
@@ -250,46 +298,58 @@ class MainWin(tk.Frame):
         datefrom = datetime.date(int(str(20) + frm[0:2]), int(frm[2:4]), int(frm[4:6]))
         re = entry.text.get("1.0", END)
         if (download_flag.get() == False and remove(re).rstrip(
-                "\n") != ''):  # Check if there are any values(notams) in left textbox and if the download_flag is set to True
+                "\n") != ''):  # Check if there are any values(notams) in left textbox and if the download_flag is
+            # set to True
             notam.clear()
-            notam.extend(re.split("\n\n"))
+            notamtext.clear()
+            notamtext.extend(re.split("\n\n"))
         elif (remove(re).rstrip("\n") == ''):
             tk.messagebox.showerror("Error", "Brak NOTAMów")
-
-        for i in range(len(notam)):
-            x.append(notam[i].find("B)"))
-            y.append(notam[i].find("C)"))
-            if notam[i].find("D)") < 0:
-                z.append(notam[i].find("E)"))
+        if (download_flag.get() == True):
+            for i in range(len(notam)):
+                notamtext.append(notam[i].val)
+        for i in range(len(notamtext)):
+            x.append(notamtext[i].find("B)"))
+            y.append(notamtext[i].find("C)"))
+            if notamtext[i].find("D)") < 0:
+                z.append(notamtext[i].find("E)"))
             else:
-                z.append(notam[i].find("D)"))
+                z.append(notamtext[i].find("D)"))
             if (int(z[i] - 1) - int(y[i] + 2)) > 14:  # Protection for maximum elements in C) Date
                 z[i] = int(y[i] + 2) + 14
-            B.append(remove(notam[i][int(x[i] + 2):int(y[i] - 1)]))
-            C.append(remove(notam[i][int(y[i] + 2):int(z[i] - 1)]))
-            datesB.append(datetime.date(int(str(20) + B[i][0:2]), int(B[i][2:4]), int(B[i][4:6])))
+            B.append(remove(notamtext[i][int(x[i] + 2):int(y[i] - 1)]))
+            C.append(remove(notamtext[i][int(y[i] + 2):int(z[i] - 1)]))
             if C[i] == "PERM":
-                datesC.append(datetime.date(9999, 1, 1))
-                if PERMvar.get() == 1:
-                    lst.append(notam[i])
-                    lst.append(" ")
+                if download_flag.get() == True:
+                    notam[i].setPERM()
+                else:
+                    notam.append(NotamClass(notamtext[i], B[i], str(9912312359), True, False))
             elif C[i][-3:] == "EST" or C[i][-1:] == "E":
-                datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
+                if download_flag.get() == True:
+                    notam[i].setEST()
+                else:
+                    notam.append(NotamClass(notamtext[i], B[i], C[i], False, True))
+            else:
+                notam.append(NotamClass(notamtext[i], B[i], C[i], False, False))
+        for i in range(len(notam)):
+            if notam[i].PERM == True:
+                if PERMvar.get() == 1:
+                    lst.append(notam[i].val)
+                    lst.append(" ")
+            elif notam[i].EST == True:
                 if ESTvar.get() == 1:
-                    lst.append(notam[i])
+                    lst.append(notam[i].val)
                     lst.append(" ")
                 else:
-                    datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
-                    if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
-                        lst.append(notam[i])
+                    if (check_NOTAM(datefrom, dateto, notam[i].startdate, notam[i].enddate)):
+                        lst.append(notam[i].val)
                         lst.append(" ")
             else:
-                datesC.append(datetime.date(int(str(20) + C[i][0:2]), int(C[i][2:4]), int(C[i][4:6])))
-                if (check_NOTAM(datefrom, dateto, datesB[i], datesC[i])):
-                    lst.append(notam[i])
+                if (check_NOTAM(datefrom, dateto, notam[i].startdate, notam[i].enddate)):
+                    lst.append(notam[i].val)
                     lst.append(" ")
-        for x in lst:
-            output.text.insert(END, x + '\n')
+        for a in lst:
+            output.text.insert(END, a + '\n')
         output.readOnly('Disabled')
 
     # TODO: Naprawić jeżeli jest pusty insert w Downloadzie
@@ -313,6 +373,21 @@ class MainWin(tk.Frame):
 
     def handle_enter(self):
         self.focus()
+
+    def download_change(self):
+        if download_flag.get() == False and (
+                remove(entry.text.get("1.0", END)).rstrip("\n") != '' or remove(output.text.get("1.0", END)).rstrip(
+                "\n") != ''):
+            MsgBox = tk.messagebox.askquestion('Download Flag change', 'This action will clear entry and output '
+                                                                       'boxes. Are you sure?',
+                                               icon='warning')
+            if MsgBox == 'yes':
+                entry.text.config(state=NORMAL)
+                output.text.config(state=NORMAL)
+                entry.text.delete('1.0', END)
+                output.text.delete('1.0', END)
+            if MsgBox == 'no':
+                download_flag.set(True)  # Setting download flag to true
 
     def get_entrydate1(self):
         return self.entrydate1.get()
