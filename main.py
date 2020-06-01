@@ -1,8 +1,9 @@
 import datetime
-import settings
 import tkinter as tk
-from tkinter import messagebox
 from tkinter import *
+from tkinter import messagebox
+
+import settings
 
 # Global BOOLVar to check if data was pasted or downloaded
 notam = []  # Global list for NOTAMs
@@ -130,53 +131,60 @@ class NotamDownloadClass:
         global searchbuttontext
         searchbuttontext = tk.StringVar()
         searchbuttontext.set("Download NOTAM / Enter")
-        aprtcode = Entry(self.frame, width=6)
-        aprtcode.pack(side=LEFT)
-        aprtcode.bind('<Return>', (lambda event: self.notam_download(aprtcode.get())))
-        aprtcode.focus()
+        self.aprtcode = Entry(self.frame, width=6)
+        self.aprtcode.pack(side=LEFT)
+        self.aprtcode.bind('<Return>', (lambda event: self.notam_download(self.aprtcode.get())))
+        self.aprtcode.focus()
 
         self.searchbutton = Button(self.frame, textvariable=searchbuttontext, width=20,
                                    command=lambda: self.notam_download(aprtcode.get())).pack(side=LEFT)
         self.frame.mainloop()
 
     def notam_download(self, aprt_to_download):
-        import requests
-        import json
-        entry.readOnly('Normal')
-        entry.text.insert(END, "Downloading " + aprt_to_download + " NOTAMS...")
-        entry.text.update()
-        if remove(settings.ICAO_API_key) == "":
-            tk.messagebox.showwarning("Warning",
-                                      "You are downloading NOTAMS from ICAO API without API KEY\nAdd your API KEY in Settings")
-        params = {
-            'api_key': settings.ICAO_API_key,
-            'format': 'json',
-            'criticality': '',
-            'locations': aprt_to_download
-        }
-        icao_URL = 'https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com/anbdata/states/notams/notams-realtime-list'
-        count = 0
-        json_data = []
-        while (json_data == [] and count < 5):
-            response = requests.get(icao_URL, params=params)
-            json_data = json.loads(response.text)
-            count += 1
-            entry.text.insert(END, "\nAttempt " + str(count))
+        if len(aprt_to_download) == 4:
+            import requests
+            import json
+            entry.readOnly('Normal')
+            entry.text.insert(END, "Downloading " + aprt_to_download + " NOTAMS...")
             entry.text.update()
-        if (json_data == [] or response.status_code != 200):
-            tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
-            searchbuttontext.set("Error. Try again")
-            return
-        entry.text.delete('1.0', END)  # NOTAMs downloaded
-        global notam
-        notam.clear()
-        for x in json_data:
-            entry.text.insert(END, x['all'] + '\n\n')
-            notam.append(NotamClass(x['all'], x['startdate'], x['enddate']))
-            # notamtext.append(x['all'])
-        download_flag.set(True)  # Setting download flag to true
-        searchbuttontext.set("Download Done")
-        entry.readOnly('Disabled')
+            if remove(settings.ICAO_API_key) == "":
+                tk.messagebox.showwarning("Warning",
+                                          "You are downloading NOTAMS from ICAO API without API KEY\nAdd your API KEY in Settings")
+            params = {
+                'api_key': settings.ICAO_API_key,
+                'format': 'json',
+                'criticality': '',
+                'locations': aprt_to_download
+            }
+            icao_URL = 'https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com/anbdata/states/notams/notams-realtime-list'
+            count = 0
+            json_data = []
+            while (json_data == [] and count < 5):
+                response = requests.get(icao_URL, params=params)
+                json_data = json.loads(response.text)
+                count += 1
+                entry.text.insert(END, "\nAttempt " + str(count))
+                entry.text.update()
+            if (json_data == [] or response.status_code != 200):
+                tk.messagebox.showerror("Error", "Error occurred while downloading data from ICAO API")
+                searchbuttontext.set("Error. Try again")
+                return
+            entry.text.delete('1.0', END)  # NOTAMs downloaded
+            global notam
+            notam.clear()
+            for x in json_data:
+                entry.text.insert(END, x['all'] + '\n\n')
+                notam.append(NotamClass(x['all'], x['startdate'], x['enddate']))
+                # notamtext.append(x['all'])
+            download_flag.set(True)  # Setting download flag to true
+            searchbuttontext.set("Download Done")
+            entry.readOnly('Disabled')
+        else:
+            tk.messagebox.showerror(title="Error", message="Enter Airport ICAO code you want to download")
+            self.master.lift()
+            self.master.focus_force()
+            self.aprtcode.focus()
+
 
 class SettingWindowClass:
     def __init__(self, master):
@@ -352,7 +360,6 @@ class MainWin(tk.Frame):
             output.text.insert(END, a + '\n')
         output.readOnly('Disabled')
 
-    # TODO: Naprawić jeżeli jest pusty insert w Downloadzie
     def labels(self):
         l1 = Label(self, text="From:").grid(row=0, column=0, sticky=E, padx=125)
         l2 = Label(self, text="To:").grid(row=0, column=0, sticky=E, padx=50)
