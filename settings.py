@@ -13,7 +13,9 @@ class Settings:
             self.__dict__ = {
                 # Default settings
                 'ICAO_API_key': '',
-                'DefaultTags': 'ILS RWY DME VOR'
+                'DefaultTags': 'ILS RWY DME VOR',
+                'DefaultAIRPORTS': 'EPKK EPRZ',
+                'ICAO_URL': 'https://v4p4sz5ijk.execute-api.us-east-1.amazonaws.com/anbdata/states/notams/notams-realtime-list'
             }
 
     def __enter__(self):
