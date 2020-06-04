@@ -13,9 +13,7 @@ lst = []
 AIRPORTS = []  # List of Airports to download
 downloaded = []
 database = []
-'''
-zip(ICAO, NOTAM[], dateofdownload)
-'''
+
 # def ticker():
 #     for AIRPORT in AIRPORTS:
 #
@@ -69,13 +67,13 @@ class NotamClass(object):
     def printNOTAM(self):  #
         gui.entry.text.insert(END, self.val + '\n\n')
 
-    # TODO: Zrobić metodę do wrzucania do entry
+    # TODO: Opisać metodę do wrzucania do entry
 
 
-class DataB(object):
-    def __init__(self, ICAOcode, notamy):
+class DataBase(object):
+    def __init__(self, ICAOcode, notams):
         self.ICAOcode = ICAOcode
-        self.notamy = notamy
+        self.notams = notams
 
 
 class TextFrame(tk.Frame):
@@ -168,12 +166,11 @@ class NotamDownloadClass:
         gui.entry.text.delete('1.0', END)
         downloaded = []
         notamloc = []
-        print(aprt_to_download)
         if not aprt_to_download in gui.AIRPORTS:
             gui.scrollbar['menu'].add_command(label=aprt_to_download, command=tk._setit(gui.variable, aprt_to_download))
             gui.AIRPORTS.append(aprt_to_download)
         for obj in database:
-            if obj.notamy != []:
+            if obj.notams != []:
                 downloaded.append(obj.ICAOcode)
         if not aprt_to_download in downloaded or stack[1][0].f_locals[
             "self"].__class__.__name__ == "NotamDownloadClass":  #
@@ -216,7 +213,9 @@ class NotamDownloadClass:
                     searchbuttontext.set("Download Done")
                 except:
                     pass
-                database.append(DataB(aprt_to_download, notamloc))
+                if aprt_to_download in downloaded:
+                    database[downloaded.index(aprt_to_download)]=DataBase(aprt_to_download, notamloc)
+                database.append(DataBase(aprt_to_download, notamloc))
             else:
                 tk.messagebox.showerror(title="Error", message="Enter Airport ICAO code you want to download")
                 self.master.lift()
@@ -224,7 +223,7 @@ class NotamDownloadClass:
                 self.aprtcode.focus()
                 return
         else:
-            notamloc = database[downloaded.index(aprt_to_download)].notamy
+            notamloc = database[downloaded.index(aprt_to_download)].notams
         for i in range(len(notamloc)):
             notamloc[i].printNOTAM()
         gui.download_flag.set(True)  # Setting download flag to true
@@ -245,7 +244,9 @@ class SettingWindowClass:
         self.buttontext = tk.StringVar()
         self.buttontext.set("Save settings")
 
-        self.master.title("NOTAM setting")
+        self.master.title(""
+                          ""
+                          "NOTAM setting")
         self.master.resizable(width=False, height=False)
         Label(self.frame, text="ICAO API key").grid(row=0, column=0)
         Label(self.frame, text="Default Tags").grid(row=1, column=0)
@@ -259,8 +260,7 @@ class SettingWindowClass:
         self.defaultAIRPORTS = Entry(self.frame, width=45)
         self.defaultAIRPORTS.grid(row=2, column=1)
         self.defaultAIRPORTS.insert(0, settings.DefaultAIRPORTS)
-        global AIRPORTS
-        AIRPORTS = self.defaultAIRPORTS.get().split(" ")
+        self.AIRPORTS = self.defaultAIRPORTS.get().split(" ")
         self.master.bind("<Escape>", (lambda event: gui.on_tl_close()))  # Closing window with ESC button
 
         Button(self.frame, textvariable=self.buttontext, width=20,
@@ -293,8 +293,6 @@ class MainWin(tk.Frame, NotamDownloadClass):
         self.download_flag.set(False)
         global downloaded  # temporary #TODO: Naprawić aby to nie był global
         global database
-        if len(database) > 0:
-            print("0", database[0].notamy)
 
         self.initUI()
         self.menubar(self.controller)
@@ -358,6 +356,8 @@ class MainWin(tk.Frame, NotamDownloadClass):
         self.entrydate2.insert(0, "UFN")
         self.entrykeywords = Entry(self, width=35)
         self.entrykeywords.insert(END, settings.DefaultTags)
+        self.entrykeywords.bind("<Return>", self.entry.highlight, add="+")
+        self.entrykeywords.bind("<Return>", self.output.highlight, add="+")
         self.entrydate1.grid(row=0, column=0, sticky=E, padx=75)
         self.entrydate2.grid(row=0, column=0, sticky=E, padx=0)
         self.entrykeywords.grid(row=0, column=0, sticky=W, padx=5)
@@ -409,7 +409,8 @@ class MainWin(tk.Frame, NotamDownloadClass):
                 z[i] = int(y[i] + 2) + 14
             B.append(remove(notamtext[i][int(x[i] + 2):int(y[i] - 1)]))
             C.append(remove(notamtext[i][int(y[i] + 2):int(z[i] - 1)]))
-            if C[i] == "PERM":
+
+            if C[i].find("PERM")>=0:
                 if gui.download_flag.get() == True:
                     notams[i].setPERM()
                 else:
